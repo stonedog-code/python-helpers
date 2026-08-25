@@ -53,6 +53,52 @@ changes what the caller goes on to do.
 `default=None` means there is no default and the question repeats until it is
 answered — Enter does not resolve to a silent `False`.
 
+## `python_helpers.args` — options from the command line, or from a question
+
+Describe each option once. This builds the `--help` **and** asks for whatever
+the command line did not supply, so the two halves cannot drift apart.
+
+```python
+from python_helpers.args import Option, YES_NO, FLAG, build_parser, collect
+
+OPTIONS = [
+    Option("server", "server to deploy to", default="pp4435", metavar="HOST"),
+    Option("confirm", "ask before deploying", kind=YES_NO, default=True),
+    Option("dry_run", "print and exit", kind=FLAG),
+]
+
+parser = build_parser(OPTIONS, prog="deploy.py", description="Deploy the thing.")
+values = collect(OPTIONS, parser.parse_args())
+#  ./deploy.py --server pp9000   ->  asks only about `confirm`
+#  ./deploy.py                   ->  asks about both
+```
+
+Writing an `add_argument` in one place and an `args.x or ask(...)` in another
+means every new option is two edits, and the failure when you make only one of
+them is silent: the flag parses fine and is then quietly ignored.
+
+### `Option(name, help, default, kind, prompt, metavar, choices, require_value)`
+
+| | |
+|---|---|
+| `name` | the Python name (`num_parallel`). The flag is **derived** (`--num-parallel`), so the two cannot disagree |
+| `kind` | `TEXT` (default), `YES_NO`, or `FLAG`. An unknown kind raises at definition time |
+| `default` | for `TEXT` a string (`None` becomes `""`); for `YES_NO` `True`, `False`, or `None` meaning no default. Anything else raises rather than failing later inside the prompt |
+| `prompt` | the question text. Defaults to a readable form of the name |
+| `require_value` | a bool, **or a callable** taking the values collected so far. Options are collected in list order, so it sees every earlier answer |
+
+`YES_NO` is spelled `--flag yes|no` rather than as a bare switch because a
+switch can only turn something *on* — there would be no way to say "no" on the
+command line to an option whose default is yes. `FLAG` is never asked about:
+prompting for `--dry-run` every run would be asking a question whose answer is
+already "no".
+
+### `collect(options, parsed) -> dict`
+
+A value given on the command line is used even when it is empty, so
+`--server ""` means "leave this flag off" rather than "ask me about it" — the
+same thing typing `none` at the question does.
+
 ## Tests
 
 ```bash
