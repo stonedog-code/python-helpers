@@ -5,14 +5,14 @@ Describe each option once and this builds the `--help` and does the asking:
     from python_helpers.args import Option, YES_NO, build_parser, collect
 
     OPTIONS = [
-        Option("server", "server to deploy to", default="pp4435"),
-        Option("confirm", "ask before deploying", kind=YES_NO, default=True),
+        Option("host", "host to connect to", default="localhost"),
+        Option("confirm", "ask before writing", kind=YES_NO, default=True),
     ]
 
-    parser = build_parser(OPTIONS, description="Deploy the thing.")
+    parser = build_parser(OPTIONS, description="Do the thing.")
     values = collect(OPTIONS, parser.parse_args())
-    #  ./deploy.py --server pp9000   ->  asks only about `confirm`
-    #  ./deploy.py                   ->  asks about both
+    #  ./tool.py --host db1   ->  asks only about `confirm`
+    #  ./tool.py              ->  asks about both
 
 The point is that the two halves cannot drift. Writing `add_argument` in one
 place and `args.x or ask(...)` in another means every new option is two edits,
@@ -139,7 +139,7 @@ def collect(options, parsed):
     """Return {name: value}, asking for whatever `parsed` did not supply.
 
     A value given on the command line is used even when it is empty, so
-    ``--server ""`` means "leave this flag off" rather than "ask me about it".
+    ``--host ""`` means "leave this flag off" rather than "ask me about it".
     That is the same thing typing "none" at the question does.
     """
     values = {}
