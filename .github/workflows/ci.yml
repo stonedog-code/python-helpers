@@ -1,0 +1,41 @@
+# The merge gate for python-helpers.
+name: CI
+
+on:
+  # Unscoped on purpose. `branches: [main]` would silently exempt a PR stacked
+  # on another branch — the one most likely to need checking.
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Never cancel a run on `main`: its result is the record of what the trunk
+  # actually does.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # The job id is the status-check context that branch protection requires, so
+  # keep it stable: renaming this job silently un-gates the branch, because
+  # protection goes on requiring a context that no longer reports.
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to an exact release, not `@v10`: astral-sh/setup-uv stopped
+      # publishing moving major tags after v7, so `@v10` resolves to nothing
+      # and the job dies in "Set up job" before a single step runs.
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+
+      # `--cov-fail-under=100` lives in pyproject.toml, so this fails on an
+      # uncovered branch as readily as on a failing test — and it prints the
+      # statement and branch counts, so a suite that silently stopped matching
+      # its files shows up as a zero rather than as silence.
+      - name: Gate (unit + 100% branch coverage)
+        run: uv run pytest

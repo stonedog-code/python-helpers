@@ -1,0 +1,38 @@
+[project]
+name = "python-helpers"
+version = "0.1.0"
+description = "Small, dependency-free helpers shared across Python projects."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+# No runtime dependencies, and that is a feature: a helper that drags a
+# dependency tree behind it is one people copy-paste instead of importing.
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/python_helpers"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--cov=python_helpers",
+    "--cov-report=term-missing",
+    # Branch coverage, not just line coverage. A prompt loop is nothing but
+    # branches: `require_value` and the yes/no retry are both re-entries that
+    # line coverage counts as covered the moment the line runs once.
+    "--cov-branch",
+    # The 100% requirement is enforced here rather than trusted. Without this
+    # the number is a report nobody reads, and the first uncovered branch
+    # arrives silently.
+    "--cov-fail-under=100",
+]
