@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "project": "python-helpers",
+  "tiers": {
+    "unit": {
+      "include": ["tests/test_*.py"]
+    }
+  }
+}
