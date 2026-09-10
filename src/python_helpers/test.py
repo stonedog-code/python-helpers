@@ -29,20 +29,16 @@ def arrange():
     A test that cannot get as far as the thing it checks has not found out
     anything about that thing. Reporting it as a failure puts one broken
     prerequisite — a login, a seed API call — into every test that needs it,
-    and the real regressions get lost in that noise. So an exception raised
-    inside the block becomes a skip whose reason names the exception:
+    and the real regressions get lost in that noise. So an `Exception` raised
+    inside the block becomes a skip whose reason names it:
 
         SKIPPED test_orders.py:14: Prerequisite action failed: TimeoutError: ...
 
     Anything that fails after the block is an ordinary failure.
 
-    `pytest.fail()` inside the block is converted too, because page objects
-    and API clients often signal "could not do it" that way. `pytest.skip()`
-    and `pytest.xfail()` are left alone: the author asked for those outcomes
-    and has already given the reason.
-
-    KeyboardInterrupt and SystemExit are not converted either. Someone
-    stopping the run does not mean a prerequisite failed.
+    Only `Exception` is converted. pytest's own outcomes — `pytest.fail()`,
+    `pytest.skip()`, `pytest.xfail()` — and KeyboardInterrupt/SystemExit are
+    not `Exception`s, so they pass through as whatever the caller asked for.
 
     Keep only setup in the block. Anything that belongs to the behaviour
     under test would be reported as a skip when it breaks.
@@ -56,20 +52,12 @@ class _Arrange:
 
     def __exit__(self, exc_type, exc, tb):
         # Hide this frame so pytest reports the skip at the test's own `with`
-        # line. Otherwise every skip would point at this file.
+        # line. A @contextmanager cannot do this: contextlib's frame sits in
+        # between, so every skip would be reported inside contextlib.py.
         __tracebackhide__ = True
-        # XFailed subclasses Failed, so it is let through before the Failed
-        # check below can turn it into a skip.
-        if exc is None or isinstance(exc, pytest.xfail.Exception):
-            return False
-        if isinstance(exc, (Exception, pytest.fail.Exception)):
-            raise pytest.skip.Exception(f"{SKIP_PREFIX}: {_describe(exc)}") from exc
-        return False
-
-
-def _describe(exc):
-    # A bare `assert` raises an AssertionError with no message. Without the
-    # type name the reason would stop at the colon.
-    message = str(exc)
-    name = type(exc).__name__
-    return f"{name}: {message}" if message else name
+        if isinstance(exc, Exception):
+            # The type name matters: a KeyError's message is just "'store'",
+            # and a bare assert in a helper module has no message at all.
+            name = type(exc).__name__
+            reason = f"{name}: {exc}" if str(exc) else name
+            pytest.skip(f"{SKIP_PREFIX}: {reason}")
