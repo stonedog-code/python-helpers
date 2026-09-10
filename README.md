@@ -99,6 +99,53 @@ A value given on the command line is used even when it is empty, so
 `--host ""` means "leave this flag off" rather than "ask me about it" — the
 same thing typing `none` at the question does.
 
+## `python_helpers.test` — pytest helpers
+
+### `arrange()` — a failed prerequisite skips the test instead of failing it
+
+```python
+from python_helpers.test import arrange
+
+@pytest.mark.e2e
+def test_order_is_findable_in_search(login_page, api):
+    with arrange():
+        dashboard = login_page.login(Role.CUSTOMER, user=_USER)
+        order_id = api.create_order(store=_STORE)
+        api.add_items(order_id, items=_ITEMS, shipping=_SHIPPING)
+
+    rows = dashboard.go_to_orders().search(status="Pending", store=_STORE_LABEL)
+
+    assert rows.count() > 0, f"Expected order {order_id} in the orders list"
+```
+
+```console
+SKIPPED [1] test_orders.py:3: Prerequisite action failed: TimeoutError: ...
+```
+
+A test that could not reach the thing it checks has learned nothing about
+that thing. If a shared prerequisite such as login breaks, reporting it as a
+failure in every test that needs it hides the real regressions. So any
+exception inside the block becomes a skip. The reason names the exception, and
+the skip is reported at the test's own `with` line. Anything after the block
+fails as usual.
+
+| raised inside the block | result |
+|---|---|
+| any `Exception`, including `AssertionError` | skip: `Prerequisite action failed: <Type>: <message>` |
+| `pytest.fail(...)` | skip, same reason format |
+| `pytest.skip(...)` / `pytest.xfail(...)` | left as is, with the author's own reason |
+| `KeyboardInterrupt` / `SystemExit` | left as is |
+
+**A run where everything skips reads as green.** If login breaks, every test
+that uses `arrange()` skips. Read the skip count alongside the pass count
+(`pytest -rs` lists every reason), and keep at least one test that checks each
+prerequisite *outside* an `arrange()` block, so a broken one shows up as a
+failure somewhere.
+
+This module imports pytest. Install with the `pytest` extra
+(`pip install "python-helpers[pytest]"`), or rely on the pytest your test
+environment already has.
+
 ## Tests
 
 ```bash
@@ -108,7 +155,9 @@ uv run pytest
 
 The suite is unit-only: it drives the real `input()` through a scripted queue,
 so it is fast, hermetic, and can assert the exact prompt string a person would
-see — the part of a prompt helper most likely to regress unnoticed.
+see — the part of a prompt helper most likely to regress unnoticed. The
+`arrange()` tests also run an in-process pytest session through `pytester`,
+because what they check is how pytest reports the outcome.
 
 **Coverage is 100%, branches included, and the gate enforces it** via
 `--cov-fail-under=100` in `pyproject.toml`. That matters more than usual for
