@@ -119,22 +119,28 @@ def test_order_is_findable_in_search(login_page, api):
 ```
 
 ```console
-SKIPPED [1] test_orders.py:3: Prerequisite action failed: TimeoutError: ...
+SKIPPED [1] test_orders.py:5: Prerequisite action failed: TimeoutError: ...
 ```
 
 A test that could not reach the thing it checks has learned nothing about
 that thing. If a shared prerequisite such as login breaks, reporting it as a
 failure in every test that needs it hides the real regressions. So any
-exception inside the block becomes a skip. The reason names the exception, and
-the skip is reported at the test's own `with` line. Anything after the block
-fails as usual.
+`Exception` inside the block becomes a skip. The reason names the exception,
+and the skip is reported at the test's own `with` line. Anything after the
+block fails as usual.
 
 | raised inside the block | result |
 |---|---|
 | any `Exception`, including `AssertionError` | skip: `Prerequisite action failed: <Type>: <message>` |
-| `pytest.fail(...)` | skip, same reason format |
-| `pytest.skip(...)` / `pytest.xfail(...)` | left as is, with the author's own reason |
+| `pytest.fail(...)` / `pytest.skip(...)` / `pytest.xfail(...)` | left as is — pytest's outcomes are not `Exception`s |
 | `KeyboardInterrupt` / `SystemExit` | left as is |
+
+It is a small class rather than a `@contextmanager` generator on purpose.
+Pytest's `-rs` summary shows a location, not a test name, and groups
+identical ones. From a generator, every skip is reported at the same line
+inside `contextlib.py`, so twenty skipped tests collapse into one
+unidentifiable line. `__exit__` can hide its own frame; a generator cannot hide
+contextlib's.
 
 **A run where everything skips reads as green.** If login breaks, every test
 that uses `arrange()` skips. Read the skip count alongside the pass count

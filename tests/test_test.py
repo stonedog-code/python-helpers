@@ -27,12 +27,13 @@ def test_an_exception_becomes_a_skip_naming_it():
     assert info.value.msg == f"{SKIP_PREFIX}: RuntimeError: boom"
 
 
-def test_the_original_exception_is_kept_as_the_cause():
+def test_the_original_exception_is_kept_as_the_context():
+    """Python links it implicitly because the skip is raised during __exit__."""
     original = ValueError("bad store")
     with pytest.raises(pytest.skip.Exception) as info:
         with arrange():
             raise original
-    assert info.value.__cause__ is original
+    assert info.value.__context__ is original
 
 
 def test_an_empty_message_still_names_the_exception_type():
@@ -47,13 +48,6 @@ def test_an_empty_message_still_names_the_exception_type():
     assert info.value.msg == f"{SKIP_PREFIX}: AssertionError"
 
 
-def test_pytest_fail_inside_the_block_becomes_a_skip():
-    with pytest.raises(pytest.skip.Exception) as info:
-        with arrange():
-            pytest.fail("no login button")
-    assert info.value.msg == f"{SKIP_PREFIX}: Failed: no login button"
-
-
 def test_pytest_skip_inside_the_block_keeps_its_own_reason():
     with pytest.raises(pytest.skip.Exception) as info:
         with arrange():
@@ -66,8 +60,15 @@ def test_pytest_skip_inside_the_block_keeps_its_own_reason():
 # the resulting Skipped would get past a narrow `raises` and skip this test,
 # which hides the regression. Measured by planting that regression.
 
-def test_pytest_xfail_inside_the_block_is_not_turned_into_a_skip():
-    """XFailed subclasses Failed, so this is the branch most easily broken."""
+def test_pytest_fail_inside_the_block_stays_a_failure():
+    with pytest.raises(BaseException) as info:
+        with arrange():
+            pytest.fail("no login button")
+    assert type(info.value) is pytest.fail.Exception
+    assert info.value.msg == "no login button"
+
+
+def test_pytest_xfail_inside_the_block_stays_an_xfail():
     with pytest.raises(BaseException) as info:
         with arrange():
             pytest.xfail("known bug")
