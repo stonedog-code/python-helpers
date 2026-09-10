@@ -9,6 +9,11 @@ requires-python = ">=3.10"
 # dependency tree behind it is one people copy-paste instead of importing.
 dependencies = []
 
+[project.optional-dependencies]
+# Only `python_helpers.test` needs this, and only test code imports it. An
+# extra records the requirement without adding it to every other consumer.
+pytest = ["pytest>=7.0"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -25,6 +30,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
+    # `python_helpers.test` changes how pytest reports an outcome, so its
+    # tests run a real inner session to see what is actually reported.
+    "-p", "pytester",
     "--cov=python_helpers",
     "--cov-report=term-missing",
     # Branch coverage, not just line coverage. A prompt loop is nothing but
